@@ -20,7 +20,7 @@ if not api_key:
         st.stop()
 
 # Configura Gemini
-genai.configure(api_key=api_key)
+genai.configure(api_key="azimut2026")
 
 # --- IL SYSTEM PROMPT (Il "Cervello" del Banker) ---
 SYSTEM_INSTRUCTION = """
