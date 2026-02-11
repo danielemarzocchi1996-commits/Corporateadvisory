@@ -6,62 +6,6 @@ import os
 # --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="Corporate Advisor IA", layout="wide")
 
-# --- CUSTOM CSS (COLORI PANTONE & UPLOAD) ---
-st.markdown("""
-    <style>
-    /* 1. SFONDO GENERALE (Pantone 14-4210 TPG 'Celestial Blue' approx) */
-    .stApp {
-        background-color: #A4C6E3;
-    }
-    
-    /* 2. FORZA TESTO NERO SU TUTTO IL SITO (Tranne eccezioni sotto) */
-    h1, h2, h3, h4, h5, h6, p, li, span, div, label, .stMarkdown {
-        color: #000000 !important;
-    }
-
-    /* 3. STILE DEL RIQUADRO DI CARICAMENTO (UPLOAD) */
-    div[data-testid="stFileUploader"] {
-        background-color: #003366; /* Blu Scuro */
-        border-radius: 10px;
-        padding: 15px;
-    }
-    /* Scritte interne al box upload devono essere BIANCHE */
-    div[data-testid="stFileUploader"] label {
-        color: #FFFFFF !important; /* Titolo "Carica PDF" */
-        font-weight: bold;
-    }
-    div[data-testid="stFileUploader"] div, 
-    div[data-testid="stFileUploader"] span, 
-    div[data-testid="stFileUploader"] small {
-        color: #e0e0e0 !important; /* Testi piccoli "Drag and drop..." */
-    }
-    /* Bottone "Browse files" dentro l'upload */
-    div[data-testid="stFileUploader"] button {
-        background-color: #FFFFFF;
-        color: #003366 !important;
-        border: none;
-    }
-
-    /* 4. CARD BIANCHE (Per contrasto con lo sfondo azzurro) */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #FFFFFF;
-        border: 1px solid #003366; /* Bordo sottile blu scuro */
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-    }
-    
-    /* 5. GESTIONE COLORI ALERT/METRICHE */
-    /* Le metriche devono rimanere nere */
-    div[data-testid="stMetricValue"] { color: #000000 !important; }
-    div[data-testid="stMetricLabel"] { color: #000000 !important; }
-    
-    /* I box colorati (Success/Warning/Error) devono mantenere il loro testo leggibile */
-    div[data-testid="stAlert"] div {
-        color: inherit !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 # --- 1. GESTIONE CHIAVE ---
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
@@ -82,6 +26,7 @@ try:
         if 'generateContent' in m.supported_generation_methods:
             model_list.append(m.name)
     
+    # Preselezione intelligente (Flash)
     default_index = 0
     for i, name in enumerate(model_list):
         if "flash" in name and "1.5" in name:
@@ -94,7 +39,7 @@ except Exception as e:
     st.sidebar.error(f"Errore caricamento modelli: {e}")
     st.stop()
 
-# --- 3. SYSTEM PROMPT ---
+# --- 3. IL SYSTEM PROMPT (AGGIORNATO) ---
 SYSTEM_INSTRUCTION = """
 Sei un Senior Private Banker Corporate.
 Analizza il PDF (Scheda Azimut) e restituisci un JSON per guidare l'azione commerciale.
@@ -186,6 +131,7 @@ if uploaded_file is not None:
             anag = data.get('anagrafica', {})
 
             # --- HEADER PRINCIPALE ---
+            # Due colonne: Nome enorme a sinistra, Fatturato a destra
             col_head_1, col_head_2 = st.columns([3, 1])
             
             with col_head_1:
@@ -193,30 +139,20 @@ if uploaded_file is not None:
                 st.caption("Analisi basata su Bilancio Riclassificato")
             
             with col_head_2:
-                # LOGICA PER FRECCIA E COLORE DEL FATTURATO
-                trend = anag.get('trend_fatturato', 'Stabile')
-                delta_val = "Stabile"
-                
-                if "Decrescente" in trend or "calo" in trend.lower():
-                    delta_val = "- In Calo" 
-                elif "Crescente" in trend or "crescita" in trend.lower():
-                    delta_val = "+ In Crescita"
-                else:
-                    delta_val = "Stabile"
-
                 st.metric(
                     label="Fatturato (Ultimo Esercizio)", 
                     value=anag.get('fatturato_milioni', 'N/A'),
-                    delta=delta_val
+                    delta=anag.get('trend_fatturato')
                 )
 
-            # --- BOX SINTESI AZIONI ---
+            # --- BOX SINTESI AZIONI (AMPLIATO) ---
             st.divider()
             st.subheader("⚡ Sintesi azioni da fare")
+            # Usiamo un box 'warning' (giallo) o 'info' (blu) per renderlo evidente
             st.warning(data.get('sintesi_executive', 'Nessuna azione specifica rilevata.'))
             st.divider()
 
-            # --- SCORECARD ---
+            # --- SCORECARD (GRIGLIA) ---
             st.subheader("📊 Analisi Priorità per Area")
             
             scorecard = data.get('scorecard', [])
