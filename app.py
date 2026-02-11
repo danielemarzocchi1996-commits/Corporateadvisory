@@ -3,138 +3,127 @@ import google.generativeai as genai
 import json
 import os
 
-# Configurazione Pagina
-st.set_page_config(page_title="Azimut Corporate Advisor", layout="wide")
+st.set_page_config(page_title="Azimut Advisor", layout="wide")
 
-# --- GESTIONE CHIAVE DI SICUREZZA ---
+# --- 1. GESTIONE CHIAVE ---
 try:
-    # Prova a leggere dai Secrets di Streamlit
     api_key = st.secrets["GOOGLE_API_KEY"]
 except:
-    # Se non la trova, prova dalle variabili d'ambiente (per locale)
     api_key = os.getenv("GOOGLE_API_KEY")
 
-# --- DEBUG: Verifica se la chiave viene letta ---
 if not api_key:
-    st.error("ERRORE CRITICO: La API Key non è stata trovata. Controlla i Secrets.")
+    st.error("Manca la API Key nei Secrets.")
     st.stop()
-else:
-    # Mostra solo i primi 5 caratteri per sicurezza, così capiamo se è quella giusta
-    st.sidebar.success(f"Chiave caricata: {api_key[:5]}...")
 
-# Configura Gemini
+genai.configure(api_key=api_key)
+
+# --- 2. DIAGNOSTICA MODELLI (La parte nuova) ---
+st.sidebar.title("🔧 Diagnostica")
+valid_model_name = ""
+
 try:
-    genai.configure(api_key=api_key)
+    # Chiediamo a Google: "Cosa posso usare?"
+    available_models = []
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            available_models.append(m.name)
+    
+    st.sidebar.success(f"Chiave OK! Trovati {len(available_models)} modelli.")
+    st.sidebar.code("\n".join(available_models))
+
+    # Cerchiamo il modello migliore disponibile
+    if "models/gemini-1.5-flash" in available_models:
+        valid_model_name = "models/gemini-1.5-flash"
+    elif "models/gemini-1.5-flash-latest" in available_models:
+        valid_model_name = "models/gemini-1.5-flash-latest"
+    elif "models/gemini-1.5-pro" in available_models:
+        valid_model_name = "models/gemini-1.5-pro"
+    elif "models/gemini-pro" in available_models:
+        valid_model_name = "models/gemini-pro" # Fallback vecchio
+    else:
+        st.error("Nessun modello Gemini trovato per questa chiave.")
+    
+    if valid_model_name:
+        st.sidebar.info(f"Usando il modello: {valid_model_name}")
+
 except Exception as e:
-    st.error(f"Errore configurazione Gemini: {e}")
+    st.sidebar.error(f"Errore lista modelli: {e}")
 
-# --- IL SYSTEM PROMPT ---
+# --- 3. IL SYSTEM PROMPT ---
 SYSTEM_INSTRUCTION = """
-Sei un Senior Private Banker e Analista Finanziario esperto in PMI italiane.
-Il tuo compito è analizzare la "Scheda Azimut Direct" (PDF) fornita, estrarre i dati finanziari chiave e calcolare un "Priority Score" (da 0 a 100) per le aree di intervento.
-
-REGOLE DI CALCOLO SCORE (0-100):
-0-30: Bassa priorità. 31-70: Media. 71-100: Alta/Critica (Agire subito).
-
-RESTITUISCI SOLO JSON IN QUESTO FORMATO:
+Sei un Senior Private Banker. Analizza il PDF (Scheda Azimut) e estrai un JSON.
+REGOLE: Score 0-100 (0=Bassa priorità, 100=Alta).
+OUTPUT JSON:
 {
-  "anagrafica": {
-    "ragione_sociale": "String",
-    "partita_iva": "String",
-    "more_score": "String",
-    "fatturato_ultimo": "String"
-  },
+  "anagrafica": { "ragione_sociale": "String", "fatturato": "String", "more_score": "String" },
   "scorecard": [
-    {
-      "area": "Gestione Tesoreria",
-      "score": 0,
-      "colore": "red/yellow/green",
-      "dettaglio": "Stringa breve motivazione",
-      "kpi": "Liquidità vs Debiti Breve"
-    },
-    {
-      "area": "Debito Corporate",
-      "score": 0,
-      "colore": "red/yellow/green",
-      "dettaglio": "Stringa breve motivazione",
-      "kpi": "PFN/EBITDA e Scadenze"
-    },
-    {
-      "area": "Assetti Proprietari",
-      "score": 0,
-      "colore": "red/yellow/green",
-      "dettaglio": "Stringa breve motivazione",
-      "kpi": "Età soci / Holding"
-    },
-    {
-      "area": "Wealth Planning",
-      "score": 0,
-      "colore": "red/yellow/green",
-      "dettaglio": "Stringa breve motivazione",
-      "kpi": "Utili non distribuiti / PN"
-    },
-    {
-      "area": "TFR e Previdenza",
-      "score": 0,
-      "colore": "red/yellow/green",
-      "dettaglio": "Stringa breve motivazione",
-      "kpi": "Stock TFR e Dipendenti"
-    }
+    { "area": "Gestione Tesoreria", "score": 0, "colore": "green/yellow/red", "dettaglio": "String", "kpi": "String" },
+    { "area": "Debito Corporate", "score": 0, "colore": "green/yellow/red", "dettaglio": "String", "kpi": "String" },
+    { "area": "Assetti Proprietari", "score": 0, "colore": "green/yellow/red", "dettaglio": "String", "kpi": "String" },
+    { "area": "Wealth Planning", "score": 0, "colore": "green/yellow/red", "dettaglio": "String", "kpi": "String" },
+    { "area": "TFR e Previdenza", "score": 0, "colore": "green/yellow/red", "dettaglio": "String", "kpi": "String" }
   ],
-  "sintesi": "Un paragrafo discorsivo di sintesi commerciale per il consulente."
+  "sintesi": "Breve sintesi commerciale."
 }
 """
 
-def analizza_pdf(pdf_file):
-    model = genai.GenerativeModel("gemini-1.5-flash")
+def analizza_pdf(pdf_file, model_name):
+    # Usa il modello trovato dalla diagnostica
+    model = genai.GenerativeModel(model_name)
+    
     prompt_parts = [
         SYSTEM_INSTRUCTION,
         {
             "mime_type": "application/pdf",
             "data": pdf_file.getvalue()
         },
-        "Analizza questo documento e genera il JSON."
+        "Genera il JSON di analisi."
     ]
     response = model.generate_content(prompt_parts)
     return response.text.replace("```json", "").replace("```", "")
 
-# --- INTERFACCIA GRAFICA ---
+# --- 4. INTERFACCIA ---
 st.title("🏦 Azimut Corporate Advisor AI")
-st.markdown("Carica la **Scheda Azimut Direct** (PDF).")
 
-uploaded_file = st.file_uploader("Carica PDF", type="pdf")
+if not valid_model_name:
+    st.warning("⚠️ Impossibile procedere: nessun modello compatibile trovato. Controlla la sidebar.")
+else:
+    uploaded_file = st.file_uploader("Carica PDF Scheda Azimut", type="pdf")
 
-if uploaded_file is not None:
-    with st.spinner('L\'AI sta analizzando i dati finanziari...'):
-        try:
-            json_str = analizza_pdf(uploaded_file)
-            data = json.loads(json_str)
-            
-            # Header Azienda
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Azienda", data['anagrafica']['ragione_sociale'])
-            col2.metric("Fatturato", data['anagrafica']['fatturato_ultimo'])
-            col3.metric("MORE Score", data['anagrafica']['more_score'])
-            
-            st.divider()
-            
-            # Scorecard
-            st.subheader("📊 Scorecard Priorità Commerciale")
-            for item in data['scorecard']:
-                with st.container():
-                    c1, c2, c3 = st.columns([1, 3, 1])
-                    c1.markdown(f"### {item['area']}")
-                    bar_color = item['colore']
-                    val = item['score']
-                    c2.progress(val / 100, text=f"Score: {val}/100")
-                    c2.caption(f"**KPI:** {item['kpi']} | **Analisi:** {item['dettaglio']}")
-                    
-                    if val > 70: c3.error("ALTA PRIORITÀ")
-                    elif val > 30: c3.warning("DA MONITORARE")
-                    else: c3.success("BASSA PRIORITÀ")
-                    st.divider()
+    if uploaded_file is not None:
+        with st.spinner(f'Analisi in corso con {valid_model_name}...'):
+            try:
+                json_str = analizza_pdf(uploaded_file, valid_model_name)
+                # Tentativo di pulizia extra per JSON sporchi
+                if "{" in json_str:
+                    json_str = json_str[json_str.find("{"):json_str.rfind("}")+1]
+                
+                data = json.loads(json_str)
+                
+                # Visualizzazione
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Azienda", data['anagrafica'].get('ragione_sociale', 'N/A'))
+                c2.metric("Fatturato", data['anagrafica'].get('fatturato', 'N/A'))
+                c3.metric("MORE Score", data['anagrafica'].get('more_score', 'N/A'))
+                st.divider()
+                
+                for item in data['scorecard']:
+                    with st.container():
+                        col_a, col_b = st.columns([3, 1])
+                        col_a.subheader(f"{item['area']}")
+                        col_a.caption(f"KPI: {item['kpi']} | Note: {item['dettaglio']}")
+                        
+                        score = item['score']
+                        col_b.metric("Priority Score", f"{score}/100")
+                        if item['colore'] == 'red':
+                            col_b.error("ALTA")
+                        elif item['colore'] == 'yellow':
+                            col_b.warning("MEDIA")
+                        else:
+                            col_b.success("BASSA")
+                        st.divider()
+                
+                st.info(f"💡 **Sintesi:** {data['sintesi']}")
 
-            st.info(f"💡 **Sintesi Strategica:** {data['sintesi']}")
-
-        except Exception as e:
-            st.error(f"Errore analisi: {e}")
+            except Exception as e:
+                st.error(f"Errore: {e}")
