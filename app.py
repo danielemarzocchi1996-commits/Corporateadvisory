@@ -6,24 +6,43 @@ import os
 # --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="Corporate Advisor IA", layout="wide")
 
-# --- CUSTOM CSS (SFONDO AZZURRINO) ---
+# --- CUSTOM CSS (GRAFICA) ---
 st.markdown("""
     <style>
-    /* Sfondo generale dell'applicazione (Azzurrino Chiaro) */
+    /* 1. Sfondo generale dell'applicazione (Azzurrino Chiaro) */
     .stApp {
         background-color: #F0F8FF;
     }
     
-    /* Rendiamo i box delle card bianchi per creare contrasto */
+    /* 2. FORZA TESTO NERO SU TUTTO */
+    h1, h2, h3, h4, h5, h6, p, li, span, div, label {
+        color: #000000 !important;
+    }
+
+    /* 3. Eccezioni per mantenere leggibili i box colorati (Alert/Warning/Error) */
+    /* Qui lasciamo che Streamlit gestisca il colore, altrimenti non si legge su sfondo scuro */
+    div[data-testid="stAlert"] div, div[data-testid="stAlert"] p {
+        color: inherit !important;
+    }
+
+    /* 4. Stile delle CARD (Sfondo bianco + Bordo + Ombra) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #FFFFFF;
+        border: 1px solid #e0e0e0;
         border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
     
-    /* Header più evidente */
-    h1 {
-        color: #003366; /* Blu scuro istituzionale */
+    /* 5. Fix specifico per le METRICHE (Numeri grandi) */
+    div[data-testid="stMetricValue"] {
+        color: #000000 !important; /* Numero nero */
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #333333 !important; /* Etichetta grigio scuro quasi nero */
+    }
+    /* La freccetta (Delta) la lasciamo colorata (Rosso/Verde) per capire il trend */
+    div[data-testid="stMetricDelta"] svg {
+        /* Non forziamo il nero qui, altrimenti perdiamo l'info su crescita/decrescita */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -163,8 +182,6 @@ if uploaded_file is not None:
                 trend = anag.get('trend_fatturato', 'Stabile')
                 delta_val = "Stabile"
                 
-                # Streamlit usa la logica: se stringa inizia con "-", è rosso e freccia giù.
-                # Se inizia con "+", è verde e freccia su.
                 if "Decrescente" in trend or "calo" in trend.lower():
                     delta_val = "- In Calo" 
                 elif "Crescente" in trend or "crescita" in trend.lower():
@@ -193,7 +210,6 @@ if uploaded_file is not None:
             for i, item in enumerate(scorecard):
                 with (col_sx if i % 2 == 0 else col_dx):
                     
-                    # Il colore di sfondo bianco è gestito dal CSS sopra
                     with st.container(border=True):
                         # Header Scheda
                         head_c1, head_c2 = st.columns([3, 1])
