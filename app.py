@@ -6,43 +6,58 @@ import os
 # --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="Corporate Advisor IA", layout="wide")
 
-# --- CUSTOM CSS (GRAFICA) ---
+# --- CUSTOM CSS (COLORI PANTONE & UPLOAD) ---
 st.markdown("""
     <style>
-    /* 1. Sfondo generale dell'applicazione (Azzurrino Chiaro) */
+    /* 1. SFONDO GENERALE (Pantone 14-4210 TPG 'Celestial Blue' approx) */
     .stApp {
-        background-color: #F0F8FF;
+        background-color: #A4C6E3;
     }
     
-    /* 2. FORZA TESTO NERO SU TUTTO */
-    h1, h2, h3, h4, h5, h6, p, li, span, div, label {
+    /* 2. FORZA TESTO NERO SU TUTTO IL SITO (Tranne eccezioni sotto) */
+    h1, h2, h3, h4, h5, h6, p, li, span, div, label, .stMarkdown {
         color: #000000 !important;
     }
 
-    /* 3. Eccezioni per mantenere leggibili i box colorati (Alert/Warning/Error) */
-    /* Qui lasciamo che Streamlit gestisca il colore, altrimenti non si legge su sfondo scuro */
-    div[data-testid="stAlert"] div, div[data-testid="stAlert"] p {
-        color: inherit !important;
+    /* 3. STILE DEL RIQUADRO DI CARICAMENTO (UPLOAD) */
+    div[data-testid="stFileUploader"] {
+        background-color: #003366; /* Blu Scuro */
+        border-radius: 10px;
+        padding: 15px;
+    }
+    /* Scritte interne al box upload devono essere BIANCHE */
+    div[data-testid="stFileUploader"] label {
+        color: #FFFFFF !important; /* Titolo "Carica PDF" */
+        font-weight: bold;
+    }
+    div[data-testid="stFileUploader"] div, 
+    div[data-testid="stFileUploader"] span, 
+    div[data-testid="stFileUploader"] small {
+        color: #e0e0e0 !important; /* Testi piccoli "Drag and drop..." */
+    }
+    /* Bottone "Browse files" dentro l'upload */
+    div[data-testid="stFileUploader"] button {
+        background-color: #FFFFFF;
+        color: #003366 !important;
+        border: none;
     }
 
-    /* 4. Stile delle CARD (Sfondo bianco + Bordo + Ombra) */
+    /* 4. CARD BIANCHE (Per contrasto con lo sfondo azzurro) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #FFFFFF;
-        border: 1px solid #e0e0e0;
+        border: 1px solid #003366; /* Bordo sottile blu scuro */
         border-radius: 10px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
     }
     
-    /* 5. Fix specifico per le METRICHE (Numeri grandi) */
-    div[data-testid="stMetricValue"] {
-        color: #000000 !important; /* Numero nero */
-    }
-    div[data-testid="stMetricLabel"] {
-        color: #333333 !important; /* Etichetta grigio scuro quasi nero */
-    }
-    /* La freccetta (Delta) la lasciamo colorata (Rosso/Verde) per capire il trend */
-    div[data-testid="stMetricDelta"] svg {
-        /* Non forziamo il nero qui, altrimenti perdiamo l'info su crescita/decrescita */
+    /* 5. GESTIONE COLORI ALERT/METRICHE */
+    /* Le metriche devono rimanere nere */
+    div[data-testid="stMetricValue"] { color: #000000 !important; }
+    div[data-testid="stMetricLabel"] { color: #000000 !important; }
+    
+    /* I box colorati (Success/Warning/Error) devono mantenere il loro testo leggibile */
+    div[data-testid="stAlert"] div {
+        color: inherit !important;
     }
     </style>
     """, unsafe_allow_html=True)
