@@ -3,7 +3,8 @@ import google.generativeai as genai
 import json
 import os
 
-st.set_page_config(page_title="Azimut Advisor - Priorità Commerciale", layout="wide")
+# --- CONFIGURAZIONE PAGINA ---
+st.set_page_config(page_title="Corporate Advisor IA", layout="wide")
 
 # --- 1. GESTIONE CHIAVE ---
 try:
@@ -25,7 +26,7 @@ try:
         if 'generateContent' in m.supported_generation_methods:
             model_list.append(m.name)
     
-    # Preselezione intelligente
+    # Preselezione intelligente (Flash)
     default_index = 0
     for i, name in enumerate(model_list):
         if "flash" in name and "1.5" in name:
@@ -38,62 +39,62 @@ except Exception as e:
     st.sidebar.error(f"Errore caricamento modelli: {e}")
     st.stop()
 
-# --- 3. IL NUOVO CERVELLO (PROMPT AGGIORNATO) ---
+# --- 3. IL SYSTEM PROMPT (AGGIORNATO) ---
 SYSTEM_INSTRUCTION = """
-Sei un Senior Private Banker di Azimut. Il tuo obiettivo è analizzare il PDF allegato per identificare OPPORTUNITÀ COMMERCIALI.
+Sei un Senior Private Banker Corporate.
+Analizza il PDF (Scheda Azimut) e restituisci un JSON per guidare l'azione commerciale.
 
-**IMPORTANTE - LOGICA DELLO SCORE (PRIORITÀ DI VISITA):**
-Lo score (0-100) indica L'URGENZA di fissare un appuntamento con l'imprenditore.
-- **0-30 (Bassa Priorità):** Azienda statica, sana, senza bisogni evidenti. Non c'è urgenza.
-- **31-70 (Media Priorità):** Ci sono spunti di discussione (es. ottimizzazione).
-- **71-100 (ALTA PRIORITÀ - ACTION):** C'è un bisogno latente critico o un'opportunità enorme. (Es. Troppa liquidità ferma, Debito a breve eccessivo, Passaggio generazionale a rischio).
+**LOGICA SCORE (PRIORITÀ DI VISITA):**
+Lo score (0-100) indica L'URGENZA.
+- 0-30: Bassa Priorità (Azienda statica/sana).
+- 31-70: Media Priorità (Spunti di miglioramento).
+- 71-100: ALTA PRIORITÀ (Urgenza di intervento: eccesso liquidità, troppo debito breve, rischi soci).
 
-**STRUTTURA OUTPUT JSON (Rispetta rigorosamente):**
+**FORMATO JSON RICHIESTO:**
 {
   "anagrafica": { 
-    "ragione_sociale": "String", 
-    "fatturato_ultimo": "String", 
-    "trend_fatturato": "Crescente/Decrescente/Stabile",
-    "more_score": "String" 
+    "ragione_sociale": "Nome completo azienda SRL/SPA", 
+    "fatturato_milioni": "Es. € 4.8M (converti valore in Milioni)", 
+    "trend_fatturato": "Crescente/Decrescente/Stabile"
   },
+  "sintesi_executive": "Descrizione dettagliata (minimo 3 righe) delle azioni pratiche da fare. Esempio: 'Priorità massima sul TFR che sta crescendo troppo. Proporre subito Welfare o Fondo Pensione. Attenzione anche al debito a breve...'",
   "scorecard": [
     { 
       "area": "Gestione Tesoreria", 
       "priorita_score": 0, 
       "colore": "rosso/giallo/verde", 
-      "kpi_elenco": ["Liquidità: ...", "Ciclo cassa: ..."], 
-      "analisi_consulente": "Spiega perché la priorità è alta o bassa in 2 frasi."
+      "kpi_elenco": ["Liquidità: € ...", "Ciclo cassa: ... giorni"], 
+      "analisi_consulente": "Breve commento tecnico."
     },
     { 
       "area": "Debito Corporate", 
       "priorita_score": 0, 
       "colore": "rosso/giallo/verde", 
-      "kpi_elenco": ["PFN/EBITDA: ...", "Debiti Breve: ...", "Eligible DL: Si/No"], 
-      "analisi_consulente": "..."
+      "kpi_elenco": ["PFN/EBITDA: ...x", "Debiti Breve: € ..."], 
+      "analisi_consulente": "Breve commento tecnico."
     },
     { 
       "area": "Assetti Proprietari", 
       "priorita_score": 0, 
       "colore": "rosso/giallo/verde", 
       "kpi_elenco": ["Holding: Si/No", "Età Soci Key: ..."], 
-      "analisi_consulente": "..."
+      "analisi_consulente": "Breve commento tecnico."
     },
     { 
       "area": "Wealth Planning", 
       "priorita_score": 0, 
       "colore": "rosso/giallo/verde", 
-      "kpi_elenco": ["Utile Netto: ...", "Riserve/PN: ..."], 
-      "analisi_consulente": "..."
+      "kpi_elenco": ["Utile Netto: € ...", "Riserve/PN: ..."], 
+      "analisi_consulente": "Breve commento tecnico."
     },
     { 
       "area": "TFR e Previdenza", 
       "priorita_score": 0, 
       "colore": "rosso/giallo/verde", 
-      "kpi_elenco": ["Stock TFR: ...", "Num Dipendenti: ..."], 
-      "analisi_consulente": "..."
+      "kpi_elenco": ["Stock TFR: € ...", "Num Dipendenti: ..."], 
+      "analisi_consulente": "Breve commento tecnico."
     }
-  ],
-  "sintesi_executive": "Frase finale per il consulente: 'Chiama il cliente proponendo [Prodotto] perché [Motivo]'."
+  ]
 }
 """
 
@@ -105,19 +106,19 @@ def analizza_pdf(pdf_file, model_name):
             "mime_type": "application/pdf",
             "data": pdf_file.getvalue()
         },
-        "Genera il JSON di prioritizzazione."
+        "Genera il JSON."
     ]
     response = model.generate_content(prompt_parts)
     return response.text
 
-# --- 4. INTERFACCIA GRAFICA (NUOVO LAYOUT) ---
-st.title("🚀 Azimut Priority Advisor")
-st.markdown("Analisi automatica delle opportunità commerciali basata su Bilancio Riclassificato.")
+# --- 4. INTERFACCIA GRAFICA ---
+st.title("Corporate Advisor IA")
+st.markdown("Carica la Scheda Azimut per generare il piano d'azione.")
 
-uploaded_file = st.file_uploader("Carica PDF Scheda Azimut", type="pdf")
+uploaded_file = st.file_uploader("Carica PDF", type="pdf")
 
 if uploaded_file is not None:
-    with st.spinner(f'L\'Intelligenza Artificiale sta valutando le priorità...'):
+    with st.spinner(f'Analisi strategica in corso...'):
         try:
             raw_response = analizza_pdf(uploaded_file, selected_model)
             
@@ -127,69 +128,70 @@ if uploaded_file is not None:
                 clean_json = clean_json[clean_json.find("{"):clean_json.rfind("}")+1]
             
             data = json.loads(clean_json)
-            
-            # --- HEADER AZIENDA ---
             anag = data.get('anagrafica', {})
-            with st.container():
-                c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Azienda", anag.get('ragione_sociale', 'N/A'))
-                c2.metric("Fatturato", anag.get('fatturato_ultimo', 'N/A'), delta=anag.get('trend_fatturato'))
-                c3.metric("Rating MORE", anag.get('more_score', 'N/A'))
-                c4.markdown("#### Sintesi Action")
-                # Un piccolo badge per la sintesi
-                st.info(f"💡 {data.get('sintesi_executive', '')}")
-            
-            st.divider()
-            st.subheader("📊 Scorecard delle Priorità")
 
-            # --- LE 5 AREE (Layout a Schede) ---
-            scorecard = data.get('scorecard', [])
+            # --- HEADER PRINCIPALE ---
+            # Due colonne: Nome enorme a sinistra, Fatturato a destra
+            col_head_1, col_head_2 = st.columns([3, 1])
             
-            # Creiamo 2 colonne per disporre le schede (griglia)
+            with col_head_1:
+                st.header(anag.get('ragione_sociale', 'Azienda non identificata'))
+                st.caption("Analisi basata su Bilancio Riclassificato")
+            
+            with col_head_2:
+                st.metric(
+                    label="Fatturato (Ultimo Esercizio)", 
+                    value=anag.get('fatturato_milioni', 'N/A'),
+                    delta=anag.get('trend_fatturato')
+                )
+
+            # --- BOX SINTESI AZIONI (AMPLIATO) ---
+            st.divider()
+            st.subheader("⚡ Sintesi azioni da fare")
+            # Usiamo un box 'warning' (giallo) o 'info' (blu) per renderlo evidente
+            st.warning(data.get('sintesi_executive', 'Nessuna azione specifica rilevata.'))
+            st.divider()
+
+            # --- SCORECARD (GRIGLIA) ---
+            st.subheader("📊 Analisi Priorità per Area")
+            
+            scorecard = data.get('scorecard', [])
             col_sx, col_dx = st.columns(2)
             
             for i, item in enumerate(scorecard):
-                # Alterniamo le colonne per layout a griglia
                 with (col_sx if i % 2 == 0 else col_dx):
                     
-                    # Box bordato per ogni area
                     with st.container(border=True):
-                        # Header della scheda: Titolo e Score
+                        # Header Scheda
                         head_c1, head_c2 = st.columns([3, 1])
                         head_c1.markdown(f"### {item.get('area')}")
                         
                         score = item.get('priorita_score', 0)
                         
-                        # Colore e Testo della Priorità
+                        # Logica Colore Priorità (Rosso = Alta Urgenza)
                         if score >= 71:
                             priorita_txt = "ALTA"
-                            priorita_color = "red"
-                            head_c2.error(f"{score}/100\n{priorita_txt}")
+                            head_c2.error(f"{score}\n{priorita_txt}")
                         elif score >= 31:
                             priorita_txt = "MEDIA"
-                            priorita_color = "orange"
-                            head_c2.warning(f"{score}/100\n{priorita_txt}")
+                            head_c2.warning(f"{score}\n{priorita_txt}")
                         else:
                             priorita_txt = "BASSA"
-                            priorita_color = "green"
-                            head_c2.success(f"{score}/100\n{priorita_txt}")
+                            head_c2.success(f"{score}\n{priorita_txt}")
                         
-                        # KPI in evidenza (lista puntata pulita)
+                        # KPI
                         st.markdown("**KPI Rilevati:**")
                         kpis = item.get('kpi_elenco', [])
-                        # Se è una lista, stampali uno per uno
                         if isinstance(kpis, list):
                             for k in kpis:
                                 st.markdown(f"- {k}")
                         else:
                             st.markdown(f"- {kpis}")
                             
-                        # Box Commento dedicato
+                        # Commento
                         st.markdown("---")
-                        st.markdown("**📝 Analisi Consulente:**")
-                        st.info(item.get('analisi_consulente', 'Nessuna nota specifica.'))
+                        st.caption("📝 Note Consulente:")
+                        st.info(item.get('analisi_consulente', ''))
 
         except Exception as e:
-            st.error(f"Si è verificato un errore: {e}")
-            with st.expander("Dettagli tecnici (per debug)"):
-                st.code(raw_response)
+            st.error(f"Errore: {e}")
