@@ -6,6 +6,28 @@ import os
 # --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="Corporate Advisor IA", layout="wide")
 
+# --- CUSTOM CSS (SFONDO AZZURRINO) ---
+st.markdown("""
+    <style>
+    /* Sfondo generale dell'applicazione (Azzurrino Chiaro) */
+    .stApp {
+        background-color: #F0F8FF;
+    }
+    
+    /* Rendiamo i box delle card bianchi per creare contrasto */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Header più evidente */
+    h1 {
+        color: #003366; /* Blu scuro istituzionale */
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- 1. GESTIONE CHIAVE ---
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
@@ -26,7 +48,6 @@ try:
         if 'generateContent' in m.supported_generation_methods:
             model_list.append(m.name)
     
-    # Preselezione intelligente (Flash)
     default_index = 0
     for i, name in enumerate(model_list):
         if "flash" in name and "1.5" in name:
@@ -39,7 +60,7 @@ except Exception as e:
     st.sidebar.error(f"Errore caricamento modelli: {e}")
     st.stop()
 
-# --- 3. IL SYSTEM PROMPT (AGGIORNATO) ---
+# --- 3. SYSTEM PROMPT ---
 SYSTEM_INSTRUCTION = """
 Sei un Senior Private Banker Corporate.
 Analizza il PDF (Scheda Azimut) e restituisci un JSON per guidare l'azione commerciale.
@@ -131,7 +152,6 @@ if uploaded_file is not None:
             anag = data.get('anagrafica', {})
 
             # --- HEADER PRINCIPALE ---
-            # Due colonne: Nome enorme a sinistra, Fatturato a destra
             col_head_1, col_head_2 = st.columns([3, 1])
             
             with col_head_1:
@@ -139,20 +159,32 @@ if uploaded_file is not None:
                 st.caption("Analisi basata su Bilancio Riclassificato")
             
             with col_head_2:
+                # LOGICA PER FRECCIA E COLORE DEL FATTURATO
+                trend = anag.get('trend_fatturato', 'Stabile')
+                delta_val = "Stabile"
+                
+                # Streamlit usa la logica: se stringa inizia con "-", è rosso e freccia giù.
+                # Se inizia con "+", è verde e freccia su.
+                if "Decrescente" in trend or "calo" in trend.lower():
+                    delta_val = "- In Calo" 
+                elif "Crescente" in trend or "crescita" in trend.lower():
+                    delta_val = "+ In Crescita"
+                else:
+                    delta_val = "Stabile"
+
                 st.metric(
                     label="Fatturato (Ultimo Esercizio)", 
                     value=anag.get('fatturato_milioni', 'N/A'),
-                    delta=anag.get('trend_fatturato')
+                    delta=delta_val
                 )
 
-            # --- BOX SINTESI AZIONI (AMPLIATO) ---
+            # --- BOX SINTESI AZIONI ---
             st.divider()
             st.subheader("⚡ Sintesi azioni da fare")
-            # Usiamo un box 'warning' (giallo) o 'info' (blu) per renderlo evidente
             st.warning(data.get('sintesi_executive', 'Nessuna azione specifica rilevata.'))
             st.divider()
 
-            # --- SCORECARD (GRIGLIA) ---
+            # --- SCORECARD ---
             st.subheader("📊 Analisi Priorità per Area")
             
             scorecard = data.get('scorecard', [])
@@ -161,6 +193,7 @@ if uploaded_file is not None:
             for i, item in enumerate(scorecard):
                 with (col_sx if i % 2 == 0 else col_dx):
                     
+                    # Il colore di sfondo bianco è gestito dal CSS sopra
                     with st.container(border=True):
                         # Header Scheda
                         head_c1, head_c2 = st.columns([3, 1])
